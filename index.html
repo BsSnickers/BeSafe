@@ -227,12 +227,6 @@
       background: rgba(0, 0, 0, 0.5);
       z-index: 999;
     }
-    /* Стили для выбора способа указания адреса */
-    .location-option-buttons {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
-    }
     /* Скрываем карту выбора места из модального окна,
        так как теперь выбор осуществляется на основной карте */
     #chooseLocationMap {
@@ -322,15 +316,14 @@
         <option value="robbery">Грабеж</option>
         <option value="drug">Наркотики</option>
       </select>
-      <!-- Выбор способа указания адреса -->
+      <!-- Кнопка выбора адреса через карту -->
       <div class="form-group">
-        <label>Способ указания адреса</label>
+        <label>Указать адрес на карте</label>
         <div class="location-option-buttons">
-          <button type="button" class="button" id="manualAddressBtn">Вписать адрес вручную</button>
           <button type="button" class="button" id="mapAddressBtn">Указать на карте</button>
         </div>
       </div>
-      <!-- (Старая карта выбора места скрыта, выбор будет на основной карте) -->
+      <!-- (Старая карта выбора места скрыта, выбор осуществляется на основной карте) -->
       <div id="chooseLocationMap"></div>
       <input type="text" placeholder="Адрес" />
       <input type="date" placeholder="Дата происшествия" />
@@ -558,31 +551,18 @@
       }
     });
 
-    // Обработчик для кнопки "Вписать адрес вручную"
-    document.getElementById('manualAddressBtn').addEventListener('click', function() {
-      // Отменяем выбор с основной карты (если был активен)
-      selectingLocationFromMainMap = false;
-      if(tempSelectionMarker) {
-         map.removeLayer(tempSelectionMarker);
-         tempSelectionMarker = null;
-      }
-      selectedLatLng = null;
-    });
-
     // Обработчик для кнопки "Указать на карте"
     document.getElementById('mapAddressBtn').addEventListener('click', function() {
-      // Скрываем старую карту выбора места (если она есть)
-      document.getElementById('chooseLocationMap').style.display = 'none';
       selectingLocationFromMainMap = true;
       alert('Нажмите на основную карту, чтобы выбрать место преступления.');
-      map.once('click', function(e) {
+      function onMapClick(e) {
           const lat = e.latlng.lat;
           const lng = e.latlng.lng;
           if (tempSelectionMarker) {
               map.removeLayer(tempSelectionMarker);
           }
-          // Добавляем временную метку для выбранного места (можно сделать draggable, если потребуется доработать)
-          tempSelectionMarker = L.marker(e.latlng, {draggable: true}).addTo(map);
+          // Добавляем временную метку для выбранного места
+          tempSelectionMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
           fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`)
             .then(response => response.json())
             .then(data => {
@@ -592,8 +572,11 @@
               selectedLatLng = { lat, lng };
             })
             .catch(err => console.error(err));
+          // После выбора удаляем обработчик клика
+          map.off('click', onMapClick);
           selectingLocationFromMainMap = false;
-      });
+      }
+      map.on('click', onMapClick);
     });
 
     // ===== Google Авторизация =====
