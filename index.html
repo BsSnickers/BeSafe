@@ -227,10 +227,17 @@
       background: rgba(0, 0, 0, 0.5);
       z-index: 999;
     }
-    /* Скрываем карту выбора места из модального окна,
-       так как теперь выбор осуществляется на основной карте */
+    /* Стили для выбора способа указания адреса */
+    .location-option-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
     #chooseLocationMap {
+      width: 100%;
+      height: 300px;
       display: none;
+      margin-bottom: 15px;
     }
     @media (max-width: 768px) {
       body {
@@ -256,14 +263,11 @@
     <a href="#" class="logo">BeSafe</a>
     <div class="form-group">
       <label>Тип преступления</label>
-      <select id="crimeFilterSelect">
+      <select>
         <option value="all">Все типы</option>
         <option value="theft">Кража</option>
         <option value="violence">Насилие</option>
         <option value="fraud">Мошенничество</option>
-        <option value="vandalism">Вандализм</option>
-        <option value="robbery">Грабеж</option>
-        <option value="drug">Наркотики</option>
       </select>
     </div>
     <div class="form-group">
@@ -303,27 +307,25 @@
     <div id="map"></div>
   </div>
 
-  <!-- Модальное окно добавления метки -->
+  <!-- Модальное окно добавления метки (оставляем без изменений) -->
   <div class="modal" id="addMarkerModal">
     <h3>Добавить метку</h3>
     <form class="modal-form">
-      <select name="crimeType">
+      <select>
         <option value="">Выберите тип преступления</option>
         <option value="theft">Кража</option>
         <option value="violence">Насилие</option>
         <option value="fraud">Мошенничество</option>
-        <option value="vandalism">Вандализм</option>
-        <option value="robbery">Грабеж</option>
-        <option value="drug">Наркотики</option>
       </select>
-      <!-- Кнопка выбора адреса через карту -->
+      <!-- Выбор способа указания адреса -->
       <div class="form-group">
-        <label>Указать адрес на карте</label>
+        <label>Способ указания адреса</label>
         <div class="location-option-buttons">
+          <button type="button" class="button" id="manualAddressBtn">Вписать адрес вручную</button>
           <button type="button" class="button" id="mapAddressBtn">Указать на карте</button>
         </div>
       </div>
-      <!-- (Старая карта выбора места скрыта, выбор осуществляется на основной карте) -->
+      <!-- Контейнер для карты выбора места (скрыт по умолчанию) -->
       <div id="chooseLocationMap"></div>
       <input type="text" placeholder="Адрес" />
       <input type="date" placeholder="Дата происшествия" />
@@ -333,12 +335,12 @@
     </form>
   </div>
 
-  <!-- Общий overlay для модальных окон -->
+  <!-- Модальное окно (для добавления меток) используется общий overlay -->
   <div class="modal-overlay" id="modalOverlay"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
   <script>
-    // ===== Глобальные переменные =====
+        // ===== Глобальные переменные =====
     let isAuthenticated = false;
     let currentUser = null;
     let markers = [];
@@ -346,10 +348,6 @@
     // Для выбранной позиции (как при клике по карте, так и при ручном вводе)
     let selectedLatLng = null;
     let selectedAddress = '';
-    // Флаг для выбора координат на основной карте
-    let selectingLocationFromMainMap = false;
-    // Временная метка для выбранного места на основной карте
-    let tempSelectionMarker = null;
 
     // ===== Инициализация основной карты (центрируем на Бишкеке) =====
     const kyrgyzstanBounds = L.latLngBounds([39.172, 69.276], [43.238, 80.283]);
@@ -365,51 +363,9 @@
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // ===== Определяем иконки для разных типов преступлений =====
-    const crimeIcons = {
-      theft: L.icon({
-          iconUrl: 'icons/theft.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-      }),
-      violence: L.icon({
-          iconUrl: 'icons/violence.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-      }),
-      fraud: L.icon({
-          iconUrl: 'icons/fraud.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-      }),
-      vandalism: L.icon({
-          iconUrl: 'icons/vandalism.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-      }),
-      robbery: L.icon({
-          iconUrl: 'icons/robbery.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-      }),
-      drug: L.icon({
-          iconUrl: 'icons/drug.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-      })
-    };
+    // ===== Переменные для карты выбора места в модальном окне =====
+    let chooseLocationMap = null;
+    let chooseLocationMarker = null;
 
     // ===== Функции для модальных окон =====
     function showModal(modalId) {
@@ -419,11 +375,8 @@
     function hideModal(modalId) {
       document.getElementById(modalId).style.display = 'none';
       document.getElementById('modalOverlay').style.display = 'none';
-      // Сбрасываем выбор с основной карты (если был)
-      selectingLocationFromMainMap = false;
-      if (tempSelectionMarker) {
-        map.removeLayer(tempSelectionMarker);
-        tempSelectionMarker = null;
+      if (modalId === 'addMarkerModal') {
+        document.getElementById('chooseLocationMap').style.display = 'none';
       }
     }
 
@@ -498,21 +451,11 @@
           return;
         }
       }
-      const crimeType = this.querySelector('select[name="crimeType"]').value;
+      const crimeType = this.querySelector('select').value;
       const addressFieldValue = this.querySelector('input[type="text"]').value;
       const date = this.querySelector('input[type="date"]').value;
       const description = this.querySelector('textarea').value;
-      
-      // Выбираем иконку в зависимости от типа преступления
-      const markerIcon = crimeIcons[crimeType] || L.icon({
-          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-      });
-      
-      const marker = L.marker([selectedLatLng.lat, selectedLatLng.lng], { icon: markerIcon }).addTo(map);
+      const marker = L.marker([selectedLatLng.lat, selectedLatLng.lng]).addTo(map);
       const markerInfo = {
         crimeType,
         address: addressFieldValue,
@@ -531,14 +474,14 @@
       selectedLatLng = null;
       selectedAddress = '';
       this.reset();
+      document.getElementById('chooseLocationMap').style.display = 'none';
       hideModal('addMarkerModal');
       alert('Метка успешно добавлена на карту');
     });
 
     // При потере фокуса в поле адреса — геокодирование
     document.querySelector('#addMarkerModal input[type="text"]').addEventListener('blur', function() {
-      // Если не выбран способ указания через карту
-      if (!selectingLocationFromMainMap) {
+      if (document.getElementById('chooseLocationMap').style.display === 'none') {
         const addr = this.value;
         if (addr.trim() !== '') {
           geocodeAddress(addr)
@@ -551,18 +494,28 @@
       }
     });
 
-    // Обработчик для кнопки "Указать на карте"
+    // Обработчики для кнопок выбора способа указания адреса
+    document.getElementById('manualAddressBtn').addEventListener('click', function() {
+      document.getElementById('chooseLocationMap').style.display = 'none';
+      selectedLatLng = null;
+    });
     document.getElementById('mapAddressBtn').addEventListener('click', function() {
-      selectingLocationFromMainMap = true;
-      alert('Нажмите на основную карту, чтобы выбрать место преступления.');
-      function onMapClick(e) {
+      document.getElementById('chooseLocationMap').style.display = 'block';
+      if (!chooseLocationMap) {
+        chooseLocationMap = L.map('chooseLocationMap', {
+          center: [42.8746, 74.5698],
+          zoom: 13
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(chooseLocationMap);
+        chooseLocationMap.on('click', function(e) {
           const lat = e.latlng.lat;
           const lng = e.latlng.lng;
-          if (tempSelectionMarker) {
-              map.removeLayer(tempSelectionMarker);
+          if (chooseLocationMarker) {
+            chooseLocationMap.removeLayer(chooseLocationMarker);
           }
-          // Добавляем временную метку для выбранного места
-          tempSelectionMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
+          chooseLocationMarker = L.marker(e.latlng).addTo(chooseLocationMap);
           fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`)
             .then(response => response.json())
             .then(data => {
@@ -572,11 +525,8 @@
               selectedLatLng = { lat, lng };
             })
             .catch(err => console.error(err));
-          // После выбора удаляем обработчик клика
-          map.off('click', onMapClick);
-          selectingLocationFromMainMap = false;
+        });
       }
-      map.on('click', onMapClick);
     });
 
     // ===== Google Авторизация =====
@@ -584,7 +534,7 @@
     window.addEventListener('load', function() {
       if (typeof google !== 'undefined') {
         google.accounts.id.initialize({
-          client_id: "818880873026-nc7k7f994nc4r8easvb70pvt8nffc8s0.apps.googleusercontent.com", // Замените на ваш реальный Client ID
+          client_id: "818880873026-nc7k7f994nc4r8easvb70pvt8nffc8s0.apps.googleusercontent.com", // Замените на ваш реальный Client ID (обязательно в кавычках)
           callback: handleCredentialResponse
         });
         updateAuthUI();
@@ -631,7 +581,7 @@
     updateAuthUI();
 
     // ===== Фильтрация меток по типу преступления =====
-    document.querySelector('#crimeFilterSelect').addEventListener('change', function(e) {
+    document.querySelector('.sidebar select').addEventListener('change', function(e) {
       const selectedType = e.target.value;
       markers.forEach(({ marker, info }) => {
         if (selectedType === 'all' || selectedType === info.crimeType) {
@@ -708,6 +658,7 @@
         { enableHighAccuracy: true, maximumAge: 0 }
       );
     }
+
   </script>
 </body>
 </html>
