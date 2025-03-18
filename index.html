@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BeSafe - Карта преступлений</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+
+  <!-- Добавляем Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Arial', sans-serif;
+    }
+    body {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 300px;
+      background-color: #333333;
+      color: white;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    .logo {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 40px;
+      color: white;
+      text-decoration: none;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: white;
+    }
+    select,
+    input[type="date"],
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: white;
+      color: black;
+    }
+    .source-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .source-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .source-option input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+    }
+    .button {
+      background-color: #B44C4C;
+      color: white;
+      padding: 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+      transition: background-color 0.3s;
+    }
+    .button:hover {
+      background-color: #983f3f;
+    }
+    .about-link {
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      margin-top: auto;
+    }
+    .about-link:hover {
+      text-decoration: underline;
+    }
+    .map-container {
+      flex-grow: 1;
+      position: relative;
+      height: 100vh;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    .auth-buttons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      display: flex;
+      gap: 10px;
+    }
+    .auth-buttons .button {
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    .geolocation-button {
+      position: absolute;
+      bottom: 25px;
+      right: 10px;
+      z-index: 1000;
+      background: white;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      width: 34px;
+      height: 34px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15);
+    }
+    .geolocation-button:hover {
+      background: #f4f4f4;
+    }
+    .geolocation-button svg {
+      width: 20px;
+      height: 20px;
+      fill: #666;
+    }
+    @keyframes pulse {
+      0% {
+        transform: scale(0.5);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1.5);
+        opacity: 0;
+      }
+    }
+    .location-marker {
+      width: 16px;
+      height: 16px;
+      background: #4285F4;
+      border: 2px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+    .location-marker::after {
+      content: '';
+      display: block;
+      width: 16px;
+      height: 16px;
+      background: rgba(66, 133, 244, 0.4);
+      border-radius: 50%;
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      animation: pulse 2s ease-out infinite;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      width: 400px;
+      color: black;
+    }
+    #addMarkerModal {
+      top: auto;
+      left: auto;
+      bottom: 20px;
+      right: 20px;
+      transform: none;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      width: 400px;
+      color: black;
+    }
+    .modal h3 {
+      margin-bottom: 15px;
+    }
+    .modal-form input,
+    .modal-form select,
+    .modal-form textarea {
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .modal-form textarea {
+      height: 100px;
+      resize: vertical;
+    }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+    }
+    .location-option-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    #chooseLocationMap {
+      width: 100%;
+      height: 300px;
+      display: none;
+      margin-bottom: 15px;
+    }
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 40vh;
+        overflow-y: auto;
+      }
+      .map-container {
+        height: 60vh;
+      }
+      .modal {
+        width: 90%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <a href="#" class="logo">BeSafe</a>
+    <div class="form-group">
+      <label>Тип преступления</label>
+      <select>
+        <option value="all">Все типы</option>
+        <option value="theft">Кража</option>
+        <option value="violence">Насилие</option>
+        <option value="fraud">Мошенничество</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Период</label>
+      <input type="date" placeholder="От" style="margin-bottom: 15px;" />
+      <input type="date" placeholder="До" />
+    </div>
+    <div class="form-group">
+      <label>Источник</label>
+      <div class="source-options">
+        <div class="source-option">
+          <input type="checkbox" id="official" checked />
+          <label for="official">Официальный</label>
+        </div>
+        <div class="source-option">
+          <input type="checkbox" id="unofficial" checked />
+          <label for="unofficial">Неофициальный</label>
+        </div>
+      </div>
+    </div>
+    <button class="button" onclick="window.open('https://wa.me/+996999132667')" style="background-color: #25D366; margin-top: 10px;">Срочная связь</button>
+    <button class="button" onclick="handleAddMarker()">Сообщить о преступлении</button>
+    <button class="button">Недавние происшествия</button>
+    <a href="#" class="about-link">О проекте</a>
+  </div>
+
+  <div class="map-container">
+    <div class="auth-buttons">
+      <button id="signInButton" class="button" style="display: none;">Войти через Google</button>
+      <button id="signOutButton" class="button" style="display: none;">Выйти</button>
+    </div>
+
+    <button class="geolocation-button" onclick="getCurrentLocation()" title="Моё местоположение">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+      </svg>
+    </button>
+    <div id="map"></div>
+  </div>
+
+  <!-- Модальное окно добавления метки -->
+  <div class="modal" id="addMarkerModal">
+    <h3>Добавить метку</h3>
+    <form class="modal-form">
+      <select>
+        <option value="">Выберите тип преступления</option>
+        <option value="theft">Кража</option>
+        <option value="violence">Насилие</option>
+        <option value="fraud">Мошенничество</option>
+      </select>
+      <div class="form-group">
+        <label>Способ указания адреса</label>
+        <div class="location-option-buttons">
+          <button type="button" class="button" id="manualAddressBtn">Вписать адрес вручную</button>
+          <button type="button" class="button" id="mapAddressBtn">Указать на карте</button>
+        </div>
+      </div>
+      <div id="chooseLocationMap"></div>
+      <input type="text" placeholder="Адрес" />
+      <input type="date" placeholder="Дата происшествия" />
+      <textarea placeholder="Описание инцидента"></textarea>
+      <button type="submit" class="button">Добавить</button>
+      <button type="button" class="button" style="background: #666;" onclick="hideModal('addMarkerModal')">Отмена</button>
+    </form>
+  </div>
+
+  <!-- Модальное окно (для добавления меток) используется общий overlay -->
+  <div class="modal-overlay" id="modalOverlay"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+  <script>
+    // ===== Firebase Config =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyDgKbBuRmMxVjdC-CM2W-MssfG_kQM1-qo",
+      authDomain: "besafe-7bf08.firebaseapp.com",
+      projectId: "besafe-7bf08",
+      storageBucket: "besafe-7bf08.firebasestorage.app",
+      messagingSenderId: "155959634151",
+      appId: "1:155959634151:web:ecfadb36b522b95da35a42"
+    };
+
+    // Инициализация Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // ===== Глобальные переменные =====
+    let isAuthenticated = false;
+    let currentUser = null;
+    let markers = [];
+    let locationMarker = null;
+    let selectedLatLng = null;
+    let selectedAddress = '';
+
+    // ===== Инициализация основной карты =====
+    const kyrgyzstanBounds = L.latLngBounds([39.172, 69.276], [43.238, 80.283]);
+    var map = L.map('map', {
+      center: [42.8746, 74.5698],
+      zoom: 13,
+      minZoom: 6,
+      maxZoom: 18,
+      maxBounds: kyrgyzstanBounds,
+      maxBoundsViscosity: 1.0
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // ===== Переменные для карты выбора места в модальном окне =====
+    let chooseLocationMap = null;
+    let chooseLocationMarker = null;
+
+    // ===== Функции для модальных окон =====
+    function showModal(modalId) {
+      document.getElementById(modalId).style.display = 'block';
+      document.getElementById('modalOverlay').style.display = 'block';
+    }
+    function hideModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+      document.getElementById('modalOverlay').style.display = 'none';
+      if (modalId === 'addMarkerModal') {
+        document.getElementById('chooseLocationMap').style.display = 'none';
+      }
+    }
+
+    // ===== Геокодирование адреса вручную =====
+    function formatAddress(data) {
+      if (data && data.address) {
+        let parts = [];
+        if (data.address.house_number && data.address.road) {
+          parts.push(data.address.house_number + ' ' + data.address.road);
+        } else if (data.address.road) {
+          parts.push(data.address.road);
+        }
+        if (data.address.city) {
+          parts.push(data.address.city);
+        } else if (data.address.town) {
+          parts.push(data.address.town);
+        } else if (data.address.village) {
+          parts.push(data.address.village);
+        }
+        return parts.join(', ');
+      }
+      return data.display_name || '';
+    }
+    async function geocodeAddress(address) {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(address)}`
+      );
+      const data = await response.json();
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+          formattedAddress: formatAddress(data[0])
+        };
+      }
+      throw new Error('Address not found');
+    }
+
+    // ===== Обработка событий =====
+
+    // Кнопка "Сообщить о преступлении"
+    function handleAddMarker() {
+      if (!isAuthenticated) {
+        alert('Для добавления меток необходимо войти в аккаунт через Google.');
+        return;
+      }
+      const dateInput = document.querySelector('#addMarkerModal input[type="date"]');
+      const today = new Date().toISOString().slice(0, 10);
+      dateInput.value = today;
+      selectedLatLng = null;
+      selectedAddress = '';
+      document.querySelector('#addMarkerModal input[type="text"]').value = '';
+      showModal('addMarkerModal');
+    }
+
+    // Форма добавления метки
+    document.querySelector('#addMarkerModal form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      if (!selectedLatLng) {
+        const addr = this.querySelector('input[type="text"]').value;
+        if (addr.trim() === '') {
+          alert('Укажите адрес');
+          return;
+        }
+        try {
+          const result = await geocodeAddress(addr);
+          selectedLatLng = { lat: result.lat, lng: result.lng };
+          selectedAddress = result.formattedAddress;
+          this.querySelector('input[type="text"]').value = result.formattedAddress;
+        } catch (err) {
+          alert('Не удалось определить координаты для указанного адреса');
+          return;
+        }
+      }
+      const crimeType = this.querySelector('select').value;
+      const addressFieldValue = this.querySelector('input[type="text"]').value;
+      const date = this.querySelector('input[type="date"]').value;
+      const description = this.querySelector('textarea').value;
+      const marker = L.marker([selectedLatLng.lat, selectedLatLng.lng]).addTo(map);
+      const markerInfo = {
+        crimeType,
+        address: addressFieldValue,
+        date,
+        description,
+        userId: currentUser ? currentUser.email : null
+      };
+      markers.push({ marker, info: markerInfo });
+      marker.bindPopup(`
+        <strong>Тип:</strong> ${crimeType}<br>
+        <strong>Адрес:</strong> ${addressFieldValue}<br>
+        <strong>Дата:</strong> ${date}<br>
+        <strong>Описание:</strong> ${description}<br>
+        <strong>Автор:</strong> ${currentUser ? currentUser.email : ''}
+      `);
+      selectedLatLng = null;
+      selectedAddress = '';
+      this.reset();
+      document.getElementById('chooseLocationMap').style.display = 'none';
+      hideModal('addMarkerModal');
+      alert('Метка успешно добавлена на карту');
+    });
+
+    // При потере фокуса в поле адреса — геокодирование
+    document.querySelector('#addMarkerModal input[type="text"]').addEventListener('blur', function() {
+      if (document.getElementById('chooseLocationMap').style.display === 'none') {
+        const addr = this.value;
+        if (addr.trim() !== '') {
+          geocodeAddress(addr)
+            .then(result => {
+              selectedLatLng = { lat: result.lat, lng: result.lng };
+              this.value = result.formattedAddress;
+            })
+            .catch(err => console.error(err));
+        }
+      }
+    });
+
+    // Обработчики для кнопок выбора способа указания адреса
+    document.getElementById('manualAddressBtn').addEventListener('click', function() {
+      document.getElementById('chooseLocationMap').style.display = 'none';
+      selectedLatLng = null;
+    });
+    document.getElementById('mapAddressBtn').addEventListener('click', function() {
+      document.getElementById('chooseLocationMap').style.display = 'block';
+      if (!chooseLocationMap) {
+        chooseLocationMap = L.map('chooseLocationMap', {
+          center: [42.8746, 74.5698],
+          zoom: 13
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(chooseLocationMap);
+        chooseLocationMap.on('click', function(e) {
+          const lat = e.latlng.lat;
+          const lng = e.latlng.lng;
+          if (chooseLocationMarker) {
+            chooseLocationMap.removeLayer(chooseLocationMarker);
+          }
+          chooseLocationMarker = L.marker(e.latlng).addTo(chooseLocationMap);
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`)
+            .then(response => response.json())
+            .then(data => {
+              const formatted = formatAddress(data);
+              const addressField = document.querySelector('#addMarkerModal input[type="text"]');
+              addressField.value = formatted;
+              selectedLatLng = { lat, lng };
+            })
+            .catch(err => console.error(err));
+        });
+      }
+    });
+
+    // ===== Фильтрация меток по типу преступления =====
+    document.querySelector('.sidebar select').addEventListener('change', function(e) {
+      const selectedType = e.target.value;
+      markers.forEach(({ marker, info }) => {
+        if (selectedType === 'all' || selectedType === info.crimeType) {
+          marker.addTo(map);
+        } else {
+          marker.remove();
+        }
+      });
+    });
+
+    // ===== Фильтрация меток по датам =====
+    const dateInputs = document.querySelectorAll('.sidebar input[type="date"]');
+    dateInputs.forEach(input => {
+      input.addEventListener('change', function() {
+        const startDate = dateInputs[0].value ? new Date(dateInputs[0].value) : null;
+        const endDate = dateInputs[1].value ? new Date(dateInputs[1].value) : null;
+        markers.forEach(({ marker, info }) => {
+          const markerDate = new Date(info.date);
+          const isInRange = (!startDate || markerDate >= startDate) && (!endDate || markerDate <= endDate);
+          if (isInRange) {
+            marker.addTo(map);
+          } else {
+            marker.remove();
+          }
+        });
+      });
+    });
+
+    // ===== Геолокация пользователя =====
+    function getCurrentLocation() {
+      if (!navigator.geolocation) {
+        alert('Геолокация не поддерживается вашим браузером');
+        return;
+      }
+      const button = document.querySelector('.geolocation-button');
+      button.style.backgroundColor = '#e6e6e6';
+      const updateLocation = (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        if (kyrgyzstanBounds.contains([lat, lng])) {
+          if (locationMarker) {
+            locationMarker.setLatLng([lat, lng]);
+          } else {
+            locationMarker = L.marker([lat, lng], { icon: L.divIcon({
+              className: 'location-marker',
+              iconSize: [16, 16],
+              iconAnchor: [8, 8]
+            }) }).addTo(map);
+          }
+          map.setView([lat, lng], 16);
+        } else {
+          alert('Ваше местоположение находится за пределами Кыргызстана');
+        }
+        button.style.backgroundColor = 'white';
+      };
+      navigator.geolocation.watchPosition(
+        updateLocation,
+        (error) => {
+          button.style.backgroundColor = 'white';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              alert('Для определения местоположения необходимо разрешить доступ к геолокации');
+              break;
+            case error.POSITION_UNAVAILABLE:
+              alert('Информация о местоположении недоступна');
+              break;
+            case error.TIMEOUT:
+              alert('Время ожидания определения местоположения истекло');
+              break;
+            default:
+              alert('Произошла ошибка при определении местоположения');
+          }
+        },
+        { enableHighAccuracy: true, maximumAge: 0 }
+      );
+    }
+
+    // ===== Аутентификация через Google =====
+    function initAuth() {
+      const signInButton = document.getElementById('signInButton');
+      const signOutButton = document.getElementById('signOutButton');
+
+      // Отслеживание состояния аутентификации
+      auth.onAuthStateChanged(user => {
+        if (user) {
+          isAuthenticated = true;
+          currentUser = user;
+          signInButton.style.display = 'none';
+          signOutButton.style.display = 'block';
+        } else {
+          isAuthenticated = false;
+          currentUser = null;
+          signInButton.style.display = 'block';
+          signOutButton.style.display = 'none';
+        }
+      });
+
+      // Вход через Google
+      signInButton.addEventListener('click', () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider)
+          .catch(error => {
+            console.error('Ошибка аутентификации:', error);
+            alert('Ошибка входа: ' + error.message);
+          });
+      });
+
+      // Выход
+      signOutButton.addEventListener('click', () => {
+        auth.signOut();
+      });
+    }
+
+    // Инициализация аутентификации
+    window.onload = initAuth;
+  </script>
+</body>
+</html>
