@@ -5,8 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BeSafe - Карта преступлений</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
-  <!-- Подключаем Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
   <style>
     * {
       margin: 0;
@@ -103,20 +107,12 @@
       top: 10px;
       right: 10px;
       z-index: 1000;
+      display: flex;
+      gap: 10px;
     }
-    /* Одна кнопка для входа через Google */
-    .auth-button {
-      padding: 8px 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+    .auth-buttons .button {
+      padding: 8px 12px;
       font-size: 14px;
-      background: white;
-      color: #B44C4C;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-    .auth-button:hover {
-      background: #f5f5f5;
     }
     .geolocation-button {
       position: absolute;
@@ -227,7 +223,6 @@
       background: rgba(0, 0, 0, 0.5);
       z-index: 999;
     }
-    /* Стили для выбора способа указания адреса */
     .location-option-buttons {
       display: flex;
       gap: 10px;
@@ -263,7 +258,7 @@
     <a href="#" class="logo">BeSafe</a>
     <div class="form-group">
       <label>Тип преступления</label>
-      <select>
+      <select id="crimeTypeFilter">
         <option value="all">Все типы</option>
         <option value="theft">Кража</option>
         <option value="violence">Насилие</option>
@@ -272,8 +267,8 @@
     </div>
     <div class="form-group">
       <label>Период</label>
-      <input type="date" placeholder="От" style="margin-bottom: 15px;" />
-      <input type="date" placeholder="До" />
+      <input type="date" id="startDate" placeholder="От" style="margin-bottom: 15px;" />
+      <input type="date" id="endDate" placeholder="До" />
     </div>
     <div class="form-group">
       <label>Источник</label>
@@ -296,9 +291,10 @@
 
   <div class="map-container">
     <div class="auth-buttons">
-      <!-- Одна кнопка для входа через Google -->
-      <button class="auth-button" id="googleSignInButton">Войти в аккаунт</button>
+      <button id="signInButton" class="button" style="display: none;">Войти через Google</button>
+      <button id="signOutButton" class="button" style="display: none;">Выйти</button>
     </div>
+
     <button class="geolocation-button" onclick="getCurrentLocation()" title="Моё местоположение">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
         <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
@@ -307,17 +303,16 @@
     <div id="map"></div>
   </div>
 
-  <!-- Модальное окно добавления метки (оставляем без изменений) -->
+  <!-- Модальное окно добавления метки -->
   <div class="modal" id="addMarkerModal">
     <h3>Добавить метку</h3>
     <form class="modal-form">
-      <select>
+      <select id="crimeType">
         <option value="">Выберите тип преступления</option>
         <option value="theft">Кража</option>
         <option value="violence">Насилие</option>
         <option value="fraud">Мошенничество</option>
       </select>
-      <!-- Выбор способа указания адреса -->
       <div class="form-group">
         <label>Способ указания адреса</label>
         <div class="location-option-buttons">
@@ -325,11 +320,10 @@
           <button type="button" class="button" id="mapAddressBtn">Указать на карте</button>
         </div>
       </div>
-      <!-- Контейнер для карты выбора места (скрыт по умолчанию) -->
       <div id="chooseLocationMap"></div>
-      <input type="text" placeholder="Адрес" />
-      <input type="date" placeholder="Дата происшествия" />
-      <textarea placeholder="Описание инцидента"></textarea>
+      <input type="text" id="address" placeholder="Адрес" />
+      <input type="date" id="date" placeholder="Дата происшествия" />
+      <textarea id="description" placeholder="Описание инцидента"></textarea>
       <button type="submit" class="button">Добавить</button>
       <button type="button" class="button" style="background: #666;" onclick="hideModal('addMarkerModal')">Отмена</button>
     </form>
@@ -340,16 +334,32 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
   <script>
-        // ===== Глобальные переменные =====
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDgKbBuRmMxVjdC-CM2W-MssfG_kQM1-qo",
+      authDomain: "besafe-7bf08.firebaseapp.com",
+      projectId: "besafe-7bf08",
+      storageBucket: "besafe-7bf08.firebasestorage.app",
+      messagingSenderId: "155959634151",
+      appId: "1:155959634151:web:ecfadb36b522b95da35a42"
+    };
+
+    // Инициализация Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Глобальные переменные
     let isAuthenticated = false;
     let currentUser = null;
     let markers = [];
     let locationMarker = null;
-    // Для выбранной позиции (как при клике по карте, так и при ручном вводе)
     let selectedLatLng = null;
     let selectedAddress = '';
+    let chooseLocationMap = null;
+    let chooseLocationMarker = null;
 
-    // ===== Инициализация основной карты (центрируем на Бишкеке) =====
+    // Инициализация основной карты
     const kyrgyzstanBounds = L.latLngBounds([39.172, 69.276], [43.238, 80.283]);
     var map = L.map('map', {
       center: [42.8746, 74.5698],
@@ -363,11 +373,10 @@
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // ===== Переменные для карты выбора места в модальном окне =====
-    let chooseLocationMap = null;
-    let chooseLocationMarker = null;
+    // Загрузка меток при запуске
+    loadMarkers();
 
-    // ===== Функции для модальных окон =====
+    // Функции для модальных окон
     function showModal(modalId) {
       document.getElementById(modalId).style.display = 'block';
       document.getElementById('modalOverlay').style.display = 'block';
@@ -380,7 +389,7 @@
       }
     }
 
-    // ===== Геокодирование адреса вручную =====
+    // Геокодирование адреса
     function formatAddress(data) {
       if (data && data.address) {
         let parts = [];
@@ -415,28 +424,31 @@
       throw new Error('Address not found');
     }
 
-    // ===== Обработка событий =====
-
     // Кнопка "Сообщить о преступлении"
     function handleAddMarker() {
       if (!isAuthenticated) {
         alert('Для добавления меток необходимо войти в аккаунт через Google.');
         return;
       }
-      const dateInput = document.querySelector('#addMarkerModal input[type="date"]');
+      const dateInput = document.getElementById('date');
       const today = new Date().toISOString().slice(0, 10);
       dateInput.value = today;
       selectedLatLng = null;
       selectedAddress = '';
-      document.querySelector('#addMarkerModal input[type="text"]').value = '';
+      document.getElementById('address').value = '';
       showModal('addMarkerModal');
     }
 
     // Форма добавления метки
     document.querySelector('#addMarkerModal form').addEventListener('submit', async function(e) {
       e.preventDefault();
+      const crimeType = document.getElementById('crimeType').value;
+      const addressFieldValue = document.getElementById('address').value;
+      const date = document.getElementById('date').value;
+      const description = document.getElementById('description').value;
+
       if (!selectedLatLng) {
-        const addr = this.querySelector('input[type="text"]').value;
+        const addr = addressFieldValue;
         if (addr.trim() === '') {
           alert('Укажите адрес');
           return;
@@ -445,32 +457,43 @@
           const result = await geocodeAddress(addr);
           selectedLatLng = { lat: result.lat, lng: result.lng };
           selectedAddress = result.formattedAddress;
-          this.querySelector('input[type="text"]').value = result.formattedAddress;
+          document.getElementById('address').value = result.formattedAddress;
         } catch (err) {
           alert('Не удалось определить координаты для указанного адреса');
           return;
         }
       }
-      const crimeType = this.querySelector('select').value;
-      const addressFieldValue = this.querySelector('input[type="text"]').value;
-      const date = this.querySelector('input[type="date"]').value;
-      const description = this.querySelector('textarea').value;
-      const marker = L.marker([selectedLatLng.lat, selectedLatLng.lng]).addTo(map);
-      const markerInfo = {
-        crimeType,
+
+      const markerData = {
+        crimeType: crimeType,
         address: addressFieldValue,
-        date,
-        description,
-        userId: currentUser ? currentUser.email : null
+        date: date,
+        description: description,
+        userId: currentUser ? currentUser.email : null,
+        lat: selectedLatLng.lat,
+        lng: selectedLatLng.lng,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-      markers.push({ marker, info: markerInfo });
-      marker.bindPopup(`
-        <strong>Тип:</strong> ${crimeType}<br>
-        <strong>Адрес:</strong> ${addressFieldValue}<br>
-        <strong>Дата:</strong> ${date}<br>
-        <strong>Описание:</strong> ${description}<br>
-        <strong>Автор:</strong> ${currentUser ? currentUser.email : ''}
-      `);
+
+      try {
+        const docRef = await db.collection('markers').add(markerData);
+        console.log('Метка добавлена с ID: ', docRef.id);
+
+        const marker = L.marker([selectedLatLng.lat, selectedLatLng.lng]).addTo(map);
+        marker.bindPopup(`
+          <strong>Тип:</strong> ${crimeType}<br>
+          <strong>Адрес:</strong> ${addressFieldValue}<br>
+          <strong>Дата:</strong> ${date}<br>
+          <strong>Описание:</strong> ${description}<br>
+          <strong>Автор:</strong> ${currentUser ? currentUser.email : ''}
+        `);
+        markers.push({ marker, info: markerData });
+      } catch (error) {
+        console.error('Ошибка при добавлении метки: ', error);
+        alert('Не удалось добавить метку');
+        return;
+      }
+
       selectedLatLng = null;
       selectedAddress = '';
       this.reset();
@@ -479,8 +502,8 @@
       alert('Метка успешно добавлена на карту');
     });
 
-    // При потере фокуса в поле адреса — геокодирование
-    document.querySelector('#addMarkerModal input[type="text"]').addEventListener('blur', function() {
+    // Геокодирование при вводе адреса вручную
+    document.getElementById('address').addEventListener('blur', function() {
       if (document.getElementById('chooseLocationMap').style.display === 'none') {
         const addr = this.value;
         if (addr.trim() !== '') {
@@ -494,7 +517,7 @@
       }
     });
 
-    // Обработчики для кнопок выбора способа указания адреса
+    // Выбор адреса на карте
     document.getElementById('manualAddressBtn').addEventListener('click', function() {
       document.getElementById('chooseLocationMap').style.display = 'none';
       selectedLatLng = null;
@@ -520,8 +543,7 @@
             .then(response => response.json())
             .then(data => {
               const formatted = formatAddress(data);
-              const addressField = document.querySelector('#addMarkerModal input[type="text"]');
-              addressField.value = formatted;
+              document.getElementById('address').value = formatted;
               selectedLatLng = { lat, lng };
             })
             .catch(err => console.error(err));
@@ -529,71 +551,20 @@
       }
     });
 
-    // ===== Google Авторизация =====
-    // Выполняем инициализацию Google Identity Services после полной загрузки страницы
-    window.addEventListener('load', function() {
-      if (typeof google !== 'undefined') {
-        google.accounts.id.initialize({
-          client_id: "818880873026-nc7k7f994nc4r8easvb70pvt8nffc8s0.apps.googleusercontent.com", // Замените на ваш реальный Client ID (обязательно в кавычках)
-          callback: handleCredentialResponse
-        });
-        updateAuthUI();
-      } else {
-        console.error("Google Identity Services library is not loaded");
-      }
-    });
-
-    // Обработчик ответа от Google
-    function handleCredentialResponse(response) {
-      console.log("Encoded JWT ID token: " + response.credential);
-      const tokenParts = response.credential.split('.');
-      const payload = JSON.parse(atob(tokenParts[1]));
-      isAuthenticated = true;
-      currentUser = { email: payload.email, name: payload.name };
-      updateAuthUI();
-    }
-
-    // Функция обновления интерфейса авторизации
-    function updateAuthUI() {
-      const authContainer = document.querySelector('.auth-buttons');
-      if (isAuthenticated) {
-        authContainer.innerHTML = `
-          <span class="auth-button">Привет, ${currentUser.name || currentUser.email}</span>
-          <button class="auth-button" onclick="logout()">Выйти</button>
-        `;
-      } else {
-        authContainer.innerHTML = `<div id="googleSignInButton"></div>`;
-        if (typeof google !== 'undefined') {
-          google.accounts.id.renderButton(
-            document.getElementById("googleSignInButton"),
-            { theme: "outline", size: "large" }
-          );
-        } else {
-          console.error("google is undefined in updateAuthUI");
-        }
-      }
-    }
-    function logout() {
-      isAuthenticated = false;
-      currentUser = null;
-      updateAuthUI();
-    }
-    updateAuthUI();
-
-    // ===== Фильтрация меток по типу преступления =====
-    document.querySelector('.sidebar select').addEventListener('change', function(e) {
+    // Фильтрация по типу преступления
+    document.getElementById('crimeTypeFilter').addEventListener('change', function(e) {
       const selectedType = e.target.value;
       markers.forEach(({ marker, info }) => {
         if (selectedType === 'all' || selectedType === info.crimeType) {
           marker.addTo(map);
         } else {
-          marker.remove();
+          map.removeLayer(marker);
         }
       });
     });
 
-    // ===== Фильтрация меток по датам =====
-    const dateInputs = document.querySelectorAll('.sidebar input[type="date"]');
+    // Фильтрация по датам
+    const dateInputs = [document.getElementById('startDate'), document.getElementById('endDate')];
     dateInputs.forEach(input => {
       input.addEventListener('change', function() {
         const startDate = dateInputs[0].value ? new Date(dateInputs[0].value) : null;
@@ -604,13 +575,13 @@
           if (isInRange) {
             marker.addTo(map);
           } else {
-            marker.remove();
+            map.removeLayer(marker);
           }
         });
       });
     });
 
-    // ===== Геолокация пользователя =====
+    // Геолокация пользователя
     function getCurrentLocation() {
       if (!navigator.geolocation) {
         alert('Геолокация не поддерживается вашим браузером');
@@ -659,6 +630,62 @@
       );
     }
 
+    // Аутентификация через Google
+    function initAuth() {
+      const signInButton = document.getElementById('signInButton');
+      const signOutButton = document.getElementById('signOutButton');
+
+      auth.onAuthStateChanged(user => {
+        if (user) {
+          isAuthenticated = true;
+          currentUser = user;
+          signInButton.style.display = 'none';
+          signOutButton.style.display = 'block';
+        } else {
+          isAuthenticated = false;
+          currentUser = null;
+          signInButton.style.display = 'block';
+          signOutButton.style.display = 'none';
+        }
+      });
+
+      signInButton.addEventListener('click', () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider)
+          .catch(error => {
+            console.error('Ошибка аутентификации:', error);
+            alert('Ошибка входа: ' + error.message);
+          });
+      });
+
+      signOutButton.addEventListener('click', () => {
+        auth.signOut();
+      });
+    }
+
+    window.onload = initAuth;
+
+    // Загрузка меток из Firestore
+    async function loadMarkers() {
+      try {
+        const snapshot = await db.collection('markers').get();
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const marker = L.marker([data.lat, data.lng]).addTo(map);
+          marker.bindPopup(`
+            <strong>Тип:</strong> ${data.crimeType}<br>
+            <strong>Адрес:</strong> ${data.address}<br>
+            <strong>Дата:</strong> ${data.date}<br>
+            <strong>Описание:</strong> ${data.description}<br>
+            <strong>Автор:</strong> ${data.userId || 'Неизвестно'}
+          `);
+          markers.push({ marker, info: data });
+        });
+      } catch (error) {
+        console.error('Ошибка при загрузке меток: ', error);
+        alert('Не удалось загрузить метки');
+      }
+    }
   </script>
 </body>
 </html>
