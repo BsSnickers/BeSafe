@@ -394,6 +394,7 @@
   .leaflet-control-zoom {
     position: fixed !important;
     bottom: 70px;
+    margin-bottom:320px;
     right: 10px;
     transition: none !important;
   }
@@ -403,6 +404,7 @@
 @media (max-width: 768px) {
   .geolocation-button {
     bottom: 65px; /* Было 25px */
+    position: fixed !important ;
   }
 }
 
@@ -421,6 +423,24 @@
   .language-selector {
     width: 50%;
     margin-top: 10px;
+  }
+}
+
+/* Скрыть мобильный селектор на десктопе */
+@media (min-width: 769px) {
+  .mobile-language {
+    display: none !important;
+  }
+}
+
+/* Скрыть десктопный селектор на мобилках */
+@media (max-width: 768px) {
+  .top-controls .language-selector {
+    display: none !important;
+  }
+  
+  .mobile-language {
+    display: block !important; 
   }
 }
 </style>
