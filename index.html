@@ -443,6 +443,33 @@
     display: block !important; 
   }
 }
+
+/* Изменения для мобильных устройств */
+@media (max-width: 768px) {
+  /* Изменить порядок элементов верхних контролов: переключатель языка слева от кнопок авторизации */
+  .top-controls {
+    position: fixed;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    top: 60px; /* изменено с 10px на 60px */
+    right: 10px;
+  }
+  /* Гарантировать отображение переключателя языков в верхних контролах */
+  .top-controls .language-selector {
+    display: block !important;
+  }
+  /* Скрыть мобильный переключатель в сайдбаре */
+  .mobile-language {
+    display: none !important;
+  }
+  /* Зафиксировать положение кнопок при зуме */
+  .top-controls .auth-buttons .button,
+  .top-controls .language-selector select {
+    transform-origin: center;
+    transition: none;
+  }
+}
 </style>
 </head>
 <body>
@@ -1212,37 +1239,32 @@
     loadMarkers();
   };
 
-
-
-
   document.querySelector('.hamburger').addEventListener('click', () => {
-  const sidebar = document.querySelector('.sidebar');
-  const hamburger = document.querySelector('.hamburger');
-  
-  sidebar.classList.toggle('active');
-  
-  // Изменяем символ кнопки в зависимости от состояния меню
-  if (sidebar.classList.contains('active')) {
-    hamburger.textContent = '✕'; // Символ крестика для закрытия
-  } else {
-    hamburger.textContent = '☰'; // Символ гамбургера для открытия
-  }
-});
+    const sidebar = document.querySelector('.sidebar');
+    const hamburger = document.querySelector('.hamburger');
+    
+    sidebar.classList.toggle('active');
+    
+    // Изменяем символ кнопки в зависимости от состояния меню
+    if (sidebar.classList.contains('active')) {
+      hamburger.textContent = '✕'; // Символ крестика для закрытия
+    } else {
+      hamburger.textContent = '☰'; // Символ гамбургера для открытия
+    }
+  });
 
-// Закрывать сайдбар при клике вне его
-document.addEventListener('click', (e) => {
-  const sidebar = document.querySelector('.sidebar');
-  const hamburger = document.querySelector('.hamburger');
-  
-  if (!sidebar.contains(e.target) 
-    && !e.target.closest('.hamburger')
-    && !e.target.closest('.leaflet-container')
-    && sidebar.classList.contains('active')) {
-    sidebar.classList.remove('active');
-    hamburger.textContent = '☰'; // Возвращаем символ гамбургера
-  }
-});
-
+  document.addEventListener('click', (e) => {
+    const sidebar = document.querySelector('.sidebar');
+    const hamburger = document.querySelector('.hamburger');
+    
+    if (!sidebar.contains(e.target)
+        && !e.target.closest('.hamburger')
+        && !e.target.closest('.leaflet-container')
+        && sidebar.classList.contains('active')) {
+      sidebar.classList.remove('active');
+      hamburger.textContent = '☰'; // Возвращаем символ гамбургера
+    }
+  });
 </script>
 </body>
-</html>   
+</html>
