@@ -602,6 +602,7 @@
       <!-- Новое модальное окно для "Аналитика" -->
       <div class="modal" id="analyticsModal" style="width:80%; max-width:800px; max-height:80vh; overflow-y:auto;">
         <h3 data-lang="analytics">Аналитика</h3>
+        <button class="button" onclick="hideAnalyticsModal()" data-lang="cancel" style="margin:10px;">Отмена</button>
         <div style="margin-bottom:10px; text-align:center;">
           <select id="recentFilterSelect">
             <option value="all">Все</option>
@@ -630,7 +631,6 @@
           <canvas id="analyticsChart"></canvas>
         </div>
         <div id="incidentList" style="max-height:400px; overflow-y:auto;"></div>
-        <button class="button" onclick="hideAnalyticsModal()" data-lang="cancel">Закрыть</button>
       </div>
 
       <div class="mobile-header">
