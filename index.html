@@ -470,6 +470,19 @@
     transition: none;
   }
 }
+
+/* Центрирование модального окна добавления меток на мобильных устройствах */
+@media (max-width: 768px) {
+  #addMarkerModal {
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 400px;
+  }
+}
 </style>
 </head>
 <body>
@@ -1014,6 +1027,13 @@
   // Handle add marker button
   function handleAddMarker() {
     if (!isAuthenticated) return alert(translations[currentLanguage]['loginRequired']);
+    // Закрыть сайдбар на мобильных при нажатии кнопки "Добавить метку"
+    const sidebar = document.querySelector('.sidebar');
+    const hamburger = document.querySelector('.hamburger');
+    if (sidebar.classList.contains('active')) {
+        sidebar.classList.remove('active');
+        hamburger.textContent = '☰';
+    }
     document.getElementById('date').value = new Date().toISOString().slice(0,10);
     selectedLatLng = null; 
     selectedAddress = '';
