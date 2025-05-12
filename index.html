@@ -495,6 +495,13 @@
             <option value="theft" data-lang="theft">Кража</option>
             <option value="violence" data-lang="violence">Насилие</option>
             <option value="fraud" data-lang="fraud">Мошенничество</option>
+            <option value="robbery" data-lang="robbery">Грабеж</option>
+            <option value="banditry" data-lang="banditry">Разбой</option>
+            <option value="vehicleTheft" data-lang="vehicleTheft">Угон транспортного средства</option>
+            <option value="vandalism" data-lang="vandalism">Вандализм</option>
+            <option value="drugTrafficking" data-lang="drugTrafficking">Наркоторговля</option>
+            <option value="hooliganism" data-lang="hooliganism">Хулиганство</option>
+            <option value="roadAccident" data-lang="roadAccident">ДТП</option>
           </select>
         </div>
         <div class="form-group">
@@ -518,8 +525,8 @@
 
         <button class="button" onclick="window.open('https://wa.me/+996999132667')" style="background-color: #25D366; margin-top: 10px;" data-lang="urgentContact">Срочная связь</button>
         <button class="button" onclick="handleAddMarker()" data-lang="reportCrime">Сообщить о преступлении</button>
-        <button class="button" data-lang="recentIncidents">Недавние происшествия</button>
-        <a href="#" class="about-link" data-lang="aboutProject">О проекте</a>
+        <button class="button" onclick="showAnalyticsModal()" data-lang="analytics">Аналитика</button>
+        <a href="about.html" class="about-link" data-lang="aboutProject">О проекте</a>
         <div class="form-group mobile-language" style="display: none;">
             <label data-lang="language">Язык</label>
             <select id="mobileLanguageSelect" onchange="changeLanguage(this.value)" class="language-selector">
@@ -565,6 +572,13 @@
             <option value="theft" data-lang="theft">Кража</option>
             <option value="violence" data-lang="violence">Насилие</option>
             <option value="fraud" data-lang="fraud">Мошенничество</option>
+            <option value="robbery" data-lang="robbery">Грабеж</option>
+            <option value="banditry" data-lang="banditry">Разбой</option>
+            <option value="vehicleTheft" data-lang="vehicleTheft">Угон транспортного средства</option>
+            <option value="vandalism" data-lang="vandalism">Вандализм</option>
+            <option value="drugTrafficking" data-lang="drugTrafficking">Наркоторговля</option>
+            <option value="hooliganism" data-lang="hooliganism">Хулиганство</option>
+            <option value="roadAccident" data-lang="roadAccident">ДТП</option>
           </select>
           <div class="form-group">
             <label data-lang="addressMethod">Способ указания адреса</label>
@@ -585,6 +599,40 @@
         </form>
       </div>
 
+      <!-- Новое модальное окно для "Аналитика" -->
+      <div class="modal" id="analyticsModal" style="width:80%; max-width:800px; max-height:80vh; overflow-y:auto;">
+        <h3 data-lang="analytics">Аналитика</h3>
+        <div style="margin-bottom:10px; text-align:center;">
+          <select id="recentFilterSelect">
+            <option value="all">Все</option>
+            <option value="theft" data-lang="theft">Кража</option>
+            <option value="violence" data-lang="violence">Насилие</option>
+            <option value="fraud" data-lang="fraud">Мошенничество</option>
+            <option value="robbery" data-lang="robbery">Грабеж</option>
+            <option value="banditry" data-lang="banditry">Разбой</option>
+            <option value="vehicleTheft" data-lang="vehicleTheft">Угон транспортного средства</option>
+            <option value="vandalism" data-lang="vandalism">Вандализм</option>
+            <option value="drugTrafficking" data-lang="drugTrafficking">Наркоторговля</option>
+            <option value="hooliganism" data-lang="hooliganism">Хулиганство</option>
+            <option value="roadAccident" data-lang="roadAccident">ДТП</option>
+          </select>
+        </div>
+        <div style="margin-bottom:10px; text-align:center;">
+          <select id="timeFilterSelect">
+            <option value="all">Все время</option>
+            <option value="today">Сегодня</option>
+            <option value="month">Этот месяц</option>
+            <option value="year">Этот год</option>
+          </select>
+        </div>
+        <p id="incidentCount" style="margin-bottom:10px;">Всего: 0</p>
+        <div style="margin:10px auto; max-width:600px;">
+          <canvas id="analyticsChart"></canvas>
+        </div>
+        <div id="incidentList" style="max-height:400px; overflow-y:auto;"></div>
+        <button class="button" onclick="hideAnalyticsModal()" data-lang="cancel">Закрыть</button>
+      </div>
+
       <div class="mobile-header">
         <button class="hamburger">☰</button>
         <h1 class="mobile-title">BeSafe</h1>
@@ -594,6 +642,8 @@
       <div class="modal-overlay" id="modalOverlay"></div>
     
       <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+      <!-- Добавляем Chart.js для динамических диаграмм -->
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   // Мультиязычность - словари
   const translations = {
@@ -604,6 +654,13 @@
       'theft': 'Кража',
       'violence': 'Насилие',
       'fraud': 'Мошенничество',
+      'robbery': 'Грабеж',
+      'banditry': 'Разбой',
+      'vehicleTheft': 'Угон транспортного средства',
+      'vandalism': 'Вандализм',
+      'drugTrafficking': 'Наркоторговля',
+      'hooliganism': 'Хулиганство',
+      'roadAccident': 'ДТП',
       'period': 'Период',
       'source': 'Источник',
       'official': 'Официальный',
@@ -611,6 +668,7 @@
       'urgentContact': 'Срочная связь',
       'reportCrime': 'Сообщить о преступлении',
       'recentIncidents': 'Недавние происшествия',
+      'analytics': 'Аналитика',
       'aboutProject': 'О проекте',
       'signIn': 'Войти через Google',
       'signOut': 'Выйти',
@@ -651,6 +709,13 @@
       'theft': 'Theft',
       'violence': 'Violence',
       'fraud': 'Fraud',
+      'robbery': 'Robbery',
+      'banditry': 'Banditry',
+      'vehicleTheft': 'Vehicle Theft',
+      'vandalism': 'Vandalism',
+      'drugTrafficking': 'Drug Trafficking',
+      'hooliganism': 'Hooliganism',
+      'roadAccident': 'Road Accident',
       'period': 'Period',
       'source': 'Source',
       'official': 'Official',
@@ -658,6 +723,7 @@
       'urgentContact': 'Emergency Contact',
       'reportCrime': 'Report a Crime',
       'recentIncidents': 'Recent Incidents',
+      'analytics': 'Analytics',
       'aboutProject': 'About Project',
       'signIn': 'Sign in with Google',
       'signOut': 'Sign Out',
@@ -698,6 +764,13 @@
       'theft': 'Уурулук',
       'violence': 'Зомбулук',
       'fraud': 'Алдамчылык',
+      'robbery': 'Грабеж',
+      'banditry': 'Разбой',
+      'vehicleTheft': 'Угон транспортного средства',
+      'vandalism': 'Вандализм',
+      'drugTrafficking': 'Наркоторговля',
+      'hooliganism': 'Хулиганство',
+      'roadAccident': 'ДТП',
       'period': 'Мезгил',
       'source': 'Булак',
       'official': 'Расмий',
@@ -705,6 +778,7 @@
       'urgentContact': 'Шашылыш байланыш',
       'reportCrime': 'Кылмыш жөнүндө билдирүү',
       'recentIncidents': 'Акыркы окуялар',
+      'analytics': 'Аналитика',
       'aboutProject': 'Долбоор жөнүндө',
       'signIn': 'Google аркылуу кирүү',
       'signOut': 'Чыгуу',
@@ -881,6 +955,9 @@
   let chooseLocationMap = null;
   let chooseLocationMarker = null;
   let debounceTimeout;
+
+  // Глобальная переменная для фильтрации по времени
+  let recentTimeFilter = 'all';
 
   // Bishkek bounds
   const bishkekBounds = L.latLngBounds([42.51, 74.25], [43.22, 74.95]);
@@ -1285,6 +1362,109 @@
       hamburger.textContent = '☰'; // Возвращаем символ гамбургера
     }
   });
+
+  // Analytics modal
+  function showAnalyticsModal() {
+    const sidebar = document.querySelector('.sidebar');
+    const hamburger = document.querySelector('.hamburger');
+    if (sidebar.classList.contains('active')) {
+        sidebar.classList.remove('active');
+        hamburger.textContent = '☰';
+    }
+    showModal('analyticsModal');
+    loadAnalytics();
+  }
+
+  function hideAnalyticsModal() {
+    hideModal('analyticsModal');
+  }
+
+  let analyticsChart; // Новая переменная для диаграммы
+
+  async function loadAnalytics() {
+    const filterType = document.getElementById('recentFilterSelect').value;
+    const timeFilter = document.getElementById('timeFilterSelect').value;
+    const listContainer = document.getElementById('incidentList');
+    listContainer.innerHTML = '';
+    let count = 0;
+    // Подсчет инцидентов по типу для диаграммы
+    const typeCounts = {theft: 0, violence: 0, fraud: 0, robbery: 0, banditry: 0, vehicleTheft: 0, vandalism: 0, drugTrafficking: 0, hooliganism: 0, roadAccident: 0};
+    try {
+      const snap = await db.collection('markers').orderBy('timestamp', 'desc').limit(50).get();
+      snap.forEach(doc => {
+        const d = doc.data();
+        const typeMatch = (filterType === 'all' || d.crimeType.toLowerCase() === filterType.toLowerCase());
+        let timeMatch = true;
+        if (timeFilter !== 'all') {
+          const incidentDate = new Date(d.date);
+          const now = new Date();
+          if (timeFilter === 'today') {
+            timeMatch = incidentDate.getFullYear() === now.getFullYear() &&
+                        incidentDate.getMonth() === now.getMonth() &&
+                        incidentDate.getDate() === now.getDate();
+          } else if (timeFilter === 'month') {
+            timeMatch = incidentDate.getFullYear() === now.getFullYear() &&
+                        incidentDate.getMonth() === now.getMonth();
+          } else if (timeFilter === 'year') {
+            timeMatch = incidentDate.getFullYear() === now.getFullYear();
+          }
+        }
+        if (typeMatch && timeMatch) {
+          const div = document.createElement('div');
+          div.style.borderBottom = '1px solid #ddd';
+          div.style.padding = '10px';
+          div.innerHTML = `<strong>${translations[currentLanguage]['crimeType']}:</strong> ${getCrimeTypeInCurrentLanguage(d.crimeType)}<br>
+                           <strong>${translations[currentLanguage]['addressPlaceholder']}:</strong> ${d.address}<br>
+                           <strong>${translations[currentLanguage]['datePlaceholder']}:</strong> ${d.date}<br>
+                           <strong>${translations[currentLanguage]['descriptionPlaceholder']}:</strong> ${d.description}<br>`;
+          listContainer.appendChild(div);
+          count++;
+          if(d.crimeType.toLowerCase() === 'theft') typeCounts.theft++;
+          else if(d.crimeType.toLowerCase() === 'violence') typeCounts.violence++;
+          else if(d.crimeType.toLowerCase() === 'fraud') typeCounts.fraud++;
+          else if(d.crimeType.toLowerCase() === 'robbery') typeCounts.robbery++;
+          else if(d.crimeType.toLowerCase() === 'banditry') typeCounts.banditry++;
+          else if(d.crimeType.toLowerCase() === 'vehicleTheft') typeCounts.vehicleTheft++;
+          else if(d.crimeType.toLowerCase() === 'vandalism') typeCounts.vandalism++;
+          else if(d.crimeType.toLowerCase() === 'drugTrafficking') typeCounts.drugTrafficking++;
+          else if(d.crimeType.toLowerCase() === 'hooliganism') typeCounts.hooliganism++;
+          else if(d.crimeType.toLowerCase() === 'roadAccident') typeCounts.roadAccident++;
+        }
+      });
+      document.getElementById('incidentCount').textContent = `Всего: ${count}`;
+
+      // Обновление диаграммы
+      const ctx = document.getElementById('analyticsChart').getContext('2d');
+      if (analyticsChart) {
+        analyticsChart.data.datasets[0].data = [typeCounts.theft, typeCounts.violence, typeCounts.fraud, typeCounts.robbery, typeCounts.banditry, typeCounts.vehicleTheft, typeCounts.vandalism, typeCounts.drugTrafficking, typeCounts.hooliganism, typeCounts.roadAccident];
+        analyticsChart.update();
+      } else {
+        analyticsChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['Кража', 'Насилие', 'Мошенничество', 'Грабеж', 'Разбой', 'Угон транспортного средства', 'Вандализм', 'Наркоторговля', 'Хулиганство', 'ДТП'],
+            datasets: [{
+              label: 'Количество инцидентов',
+              data: [typeCounts.theft, typeCounts.violence, typeCounts.fraud, typeCounts.robbery, typeCounts.banditry, typeCounts.vehicleTheft, typeCounts.vandalism, typeCounts.drugTrafficking, typeCounts.hooliganism, typeCounts.roadAccident],
+              backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(255, 206, 86, 0.2)', 'rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(153, 102, 255, 0.2)', 'rgba(255, 159, 64, 0.2)', 'rgba(201, 203, 207, 0.2)', 'rgba(255, 99, 71, 0.2)', 'rgba(144, 238, 144, 0.2)', 'rgba(255, 215, 0, 0.2)'],
+              borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 206, 86, 1)', 'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)', 'rgba(201, 203, 207, 1)', 'rgba(255, 99, 71, 1)', 'rgba(144, 238, 144, 1)', 'rgba(255, 215, 0, 1)'],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.error(translations[currentLanguage]['loadError'], e);
+    }
+  }
+
+  document.getElementById('recentFilterSelect').addEventListener('change', loadAnalytics);
+  document.getElementById('timeFilterSelect').addEventListener('change', loadAnalytics);
 </script>
 </body>
 </html>
