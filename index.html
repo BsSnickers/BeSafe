@@ -483,6 +483,10 @@
     max-width: 400px;
   }
 }
+
+#useMyLocation {
+  margin-bottom: 10px; /* Добавляет отступ снизу для отделения от поля даты */
+}
 </style>
 </head>
 <body>
@@ -553,11 +557,13 @@
             <button id="signInButton" class="button" style="display: none;" data-lang="signIn">Войти через Google</button>
             <button id="signOutButton" class="button" style="display: none;" data-lang="signOut">Выйти</button>
           </div>
+          <!-- Новая кнопка переключения между маркерами и тепловой картой -->
+          <button id="toggleHeatmap" class="button" style="margin-left:10px;">Тепловая карта</button>
         </div>
     
         <button class="geolocation-button" onclick="getCurrentLocation()" title="Моё местоположение">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13-7-7-7z"/>
+            <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13-7-7-7 3.13-7-7z"/>
           </svg>
         </button>
         <div id="map"></div>
@@ -591,6 +597,8 @@
           <div style="position: relative;">
             <input type="text" id="address" data-lang-placeholder="addressPlaceholder" placeholder="Адрес" />
             <div class="address-suggestions" id="addressSuggestions"></div>
+            <!-- Новая кнопка для получения текущего местоположения -->
+            <button type="button" class="button" id="useMyLocation" data-lang="myLocation">Мое местоположение</button>
           </div>
           <input type="date" id="date" data-lang-placeholder="datePlaceholder" placeholder="Дата происшествия" />
           <textarea id="description" data-lang-placeholder="descriptionPlaceholder" placeholder="Описание инцидента"></textarea>
@@ -644,6 +652,8 @@
       <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
       <!-- Добавляем Chart.js для динамических диаграмм -->
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <!-- Добавляем Leaflet.heat -->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 <script>
   // Мультиязычность - словари
   const translations = {
@@ -699,7 +709,10 @@
       'geolocationError': 'Ошибка геолокации',
       'loadError': 'Не удалось загрузить метки',
       'language': 'Язык',
-      'mapLanguage': 'ru'
+      'mapLanguage': 'ru',
+      'toggleToHeatmap': "Тепловая карта",
+      'toggleToMarkers': "Маркер",
+      'myLocation': "Мое местоположение"
     },
     
     // Английский
@@ -754,7 +767,10 @@
       'geolocationError': 'Geolocation error',
       'loadError': 'Failed to load markers',
       'language': 'Language',
-      'mapLanguage': 'en'
+      'mapLanguage': 'en',
+      'toggleToHeatmap': "Heat Map",
+      'toggleToMarkers': "Markers",
+      'myLocation': "My Location"
     },
     
     // Кыргызский
@@ -809,7 +825,10 @@
       'geolocationError': 'Геолокация катасы',
       'loadError': 'Белгилерди жүктөө мүмкүн эмес',
       'language': 'Тил',
-      'mapLanguage': 'ky'
+      'mapLanguage': 'ky',
+      'toggleToHeatmap': "Жылуулук картасы",
+      'toggleToMarkers': "Белгилер",
+      'myLocation': "Менин жайгашкан жерим"
     }
   };
 
@@ -865,8 +884,15 @@
   function changeLanguage(lang) {
     currentLanguage = lang;
     document.getElementById('languageSelect').value = lang;
-    document.getElementById('mobileLanguageSelect').value = lang
+    document.getElementById('mobileLanguageSelect').value = lang;
     translateUI(lang);
+    
+    // Обновляем текст кнопки тепловой карты мгновенно при смене языка
+    if (heatmapActive) {
+      document.getElementById('toggleHeatmap').textContent = translations[currentLanguage]['toggleToMarkers'];
+    } else {
+      document.getElementById('toggleHeatmap').textContent = translations[currentLanguage]['toggleToHeatmap'];
+    }
     
     // Сохраняем выбор пользователя
     localStorage.setItem('besafeLanguage', lang);
@@ -958,6 +984,10 @@
 
   // Глобальная переменная для фильтрации по времени
   let recentTimeFilter = 'all';
+
+  // Глобальные переменные для тепловой карты
+  let heatmapActive = false;
+  let heatLayer = null;
 
   // Bishkek bounds
   const bishkekBounds = L.latLngBounds([42.51, 74.25], [43.22, 74.95]);
@@ -1053,26 +1083,46 @@
     }
   }
 
-  // Load markers with translations
+  // Добавляем функцию для генерации цветной иконки метки
+  function getMarkerIcon(crimeType) {
+    const colors = {
+      theft: 'rgba(40, 120, 120, 1)',
+      violence: 'rgba(200, 160, 60, 1)',
+      fraud: 'rgba(210, 80, 110, 1)',
+      robbery: 'rgba(40, 120, 200, 1)',
+      banditry: 'rgba(100, 70, 200, 1)',
+      vehicleTheft: 'rgba(200, 100, 40, 1)',
+      vandalism: 'rgba(150, 150, 150, 1)',
+      drugTrafficking: 'rgba(200, 70, 50, 1)',
+      hooliganism: 'rgba(100, 180, 100, 1)',
+      roadAccident: 'rgba(180, 160, 0, 1)'
+    };
+    const color = colors[crimeType] || colors.theft;
+    return L.divIcon({
+      html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white;"></div>`,
+      className: '',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14]
+    });
+  }
+
+  // В loadMarkers() используем getMarkerIcon для создания метки
   async function loadMarkers() {
     try {
       const snap = await db.collection('markers').get();
       snap.forEach(doc => {
         const d = doc.data();
-        const mk = L.marker([d.lat, d.lng]).addTo(map);
-        
+        // меняем создание метки: добавляем опцию icon
+        const mk = L.marker([d.lat, d.lng], { icon: getMarkerIcon(d.crimeType) }).addTo(map);
         let html = `<strong>${translations[currentLanguage]['crimeType']}:</strong> ${getCrimeTypeInCurrentLanguage(d.crimeType)}<br>
                   <strong>${translations[currentLanguage]['addressPlaceholder']}:</strong> ${d.address}<br>
                   <strong>${translations[currentLanguage]['datePlaceholder']}:</strong> ${d.date}<br>
                   <strong>${translations[currentLanguage]['descriptionPlaceholder']}:</strong> ${d.description}<br>`;
-        
         if (currentUser && d.userId === currentUser.email) {
           html += `<button class="delete-btn" data-id="${doc.id}">${translations[currentLanguage]['deleteMarker']}</button>`;
         }
-        
         mk.bindPopup(html);
         markers.push({ marker: mk, info: d, id: doc.id });
-        
         mk.on('popupopen', () => {
           const btn = document.querySelector(`.delete-btn[data-id="${doc.id}"]`);
           if (btn) btn.onclick = () => deleteMarker(doc.id);
@@ -1173,22 +1223,22 @@
     
     try {
       const docRef = await db.collection('markers').add(data);
-      
-      const mk = L.marker([data.lat, data.lng]).addTo(map);
+      // создаем метку с иконкой согласно типу преступления
+      const mk = L.marker([data.lat, data.lng], { icon: getMarkerIcon(data.crimeType) }).addTo(map);
       let html = `<strong>${translations[currentLanguage]['crimeType']}:</strong> ${getCrimeTypeInCurrentLanguage(data.crimeType)}<br>
                 <strong>${translations[currentLanguage]['addressPlaceholder']}:</strong> ${data.address}<br>
                 <strong>${translations[currentLanguage]['datePlaceholder']}:</strong> ${data.date}<br>
                 <strong>${translations[currentLanguage]['descriptionPlaceholder']}:</strong> ${data.description}<br>
                 <button class="delete-btn" data-id="${docRef.id}">${translations[currentLanguage]['deleteMarker']}</button>`;
-      
       mk.bindPopup(html);
       markers.push({ marker: mk, info: data, id: docRef.id });
-      
       mk.on('popupopen', () => {
         const btn = document.querySelector(`.delete-btn[data-id="${docRef.id}"]`);
         if (btn) btn.onclick = () => deleteMarker(docRef.id);
       });
-      
+      if (heatmapActive && heatLayer) {
+        heatLayer.addLatLng([data.lat, data.lng, 0.5]);
+      }
       mk.openPopup();
       hideModal('addMarkerModal');
       alert(translations[currentLanguage]['markerAdded']);
@@ -1234,6 +1284,35 @@
         },
         { enableHighAccuracy: true, maximumAge: 0 }
     );
+}
+
+// Добавляем новый обработчик для кнопки заполнения текущего местоположения
+function useMyLocationForMarker() {
+  if (!navigator.geolocation) {
+    alert(translations[currentLanguage]['geolocationNotSupported']);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      if (!bishkekBounds.contains([lat, lng])) {
+        alert(translations[currentLanguage]['outOfBounds']);
+        return;
+      }
+      selectedLatLng = { lat, lng };
+      try {
+        const address = await getAddressFromCoords(lat, lng);
+        document.getElementById('address').value = address;
+      } catch (err) {
+        alert(translations[currentLanguage]['addressNotFound']);
+      }
+    },
+    err => {
+      alert(translations[currentLanguage]['geolocationError']);
+    },
+    { enableHighAccuracy: true, maximumAge: 0 }
+  );
 }
 
   // Auth initialization
@@ -1334,6 +1413,7 @@
     // Initialize auth and load markers
     initAuth();
     loadMarkers();
+    document.getElementById('useMyLocation').addEventListener('click', useMyLocationForMarker);
   };
 
   document.querySelector('.hamburger').addEventListener('click', () => {
@@ -1456,8 +1536,30 @@
                 typeCounts.vandalism, typeCounts.drugTrafficking, typeCounts.hooliganism,
                 typeCounts.roadAccident
               ],
-              backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(255, 206, 86, 0.2)', 'rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(153, 102, 255, 0.2)', 'rgba(255, 159, 64, 0.2)', 'rgba(201, 203, 207, 0.2)', 'rgba(255, 99, 71, 0.2)', 'rgba(144, 238, 144, 0.2)', 'rgba(255, 215, 0, 0.2)'],
-              borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 206, 86, 1)', 'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)', 'rgba(201, 203, 207, 1)', 'rgba(255, 99, 71, 1)', 'rgba(144, 238, 144, 1)', 'rgba(255, 215, 0, 1)'],
+              backgroundColor: [
+                'rgba(40, 120, 120, 0.2)',
+                'rgba(200, 160, 60, 0.2)',
+                'rgba(210, 80, 110, 0.2)',
+                'rgba(40, 120, 200, 0.2)',
+                'rgba(100, 70, 200, 0.2)',
+                'rgba(200, 100, 40, 0.2)',
+                'rgba(150, 150, 150, 0.2)',
+                'rgba(200, 70, 50, 0.2)',
+                'rgba(100, 180, 100, 0.2)',
+                'rgba(180, 160, 0, 0.2)'
+              ],
+              borderColor: [
+                'rgba(40, 120, 120, 1)',
+                'rgba(200, 160, 60, 1)',
+                'rgba(210, 80, 110, 1)',
+                'rgba(40, 120, 200, 1)',
+                'rgba(100, 70, 200, 1)',
+                'rgba(200, 100, 40, 1)',
+                'rgba(150, 150, 150, 1)',
+                'rgba(200, 70, 50, 1)',
+                'rgba(100, 180, 100, 1)',
+                'rgba(180, 160, 0, 1)'
+              ],
               borderWidth: 1
             }]
           },
@@ -1485,6 +1587,42 @@
 
   document.getElementById('recentFilterSelect').addEventListener('change', loadAnalytics);
   document.getElementById('timeFilterSelect').addEventListener('change', loadAnalytics);
+
+  // Функция переключения между режимами: маркеры ⇔ тепловая карта
+function toggleHeatmap() {
+  if (!heatmapActive) {
+    // Собираем координаты из существующих маркеров
+    const heatPoints = markers.map(item => {
+      const latLng = item.marker.getLatLng();
+      return [latLng.lat, latLng.lng, 0.5]; 
+    });
+
+    if (heatPoints.length === 0) {
+      alert(translations[currentLanguage]['loadError']);
+      return;
+    }
+
+    heatLayer = L.heatLayer(heatPoints, {
+      radius: 35, // Увеличенный радиус для лучшей видимости
+      blur: 25,
+      minOpacity: 0.5,
+      gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
+    }).addTo(map);
+
+    // Скрываем маркеры
+    markers.forEach(({ marker }) => map.removeLayer(marker));
+    heatmapActive = true;
+    document.getElementById('toggleHeatmap').textContent = translations[currentLanguage]['toggleToMarkers'];
+  } else {
+    // Удаляем тепловую карту и показываем маркеры
+    map.removeLayer(heatLayer);
+    markers.forEach(({ marker }) => marker.addTo(map));
+    heatmapActive = false;
+    document.getElementById('toggleHeatmap').textContent = translations[currentLanguage]['toggleToHeatmap'];
+  }
+}
+  // Добавляем обработчик клика для кнопки переключения
+  document.getElementById('toggleHeatmap').addEventListener('click', toggleHeatmap);
 </script>
 </body>
 </html>
