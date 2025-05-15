@@ -514,15 +514,15 @@
           <input type="date" id="endDate" placeholder="До" />
         </div>
         <div class="form-group">
-          <label data-lang="source">Источник</label>
+          <label data-lang="markerStatus">Статус меток</label>
           <div class="source-options">
             <div class="source-option">
-              <input type="checkbox" id="official" checked />
-              <label for="official" data-lang="official">Официальный</label>
+              <input type="checkbox" id="verified" checked />
+              <label for="verified" data-lang="verifiedLabel">Верифицированные</label>
             </div>
             <div class="source-option">
-              <input type="checkbox" id="unofficial" checked />
-              <label for="unofficial" data-lang="unofficial">Неофициальный</label>
+              <input type="checkbox" id="nonVerified" checked />
+              <label for="nonVerified" data-lang="nonVerifiedLabel">не верифицированные</label>
             </div>
           </div>
         </div>
@@ -558,7 +558,7 @@
             <button id="signOutButton" class="button" style="display: none;" data-lang="signOut">Выйти</button>
           </div>
           <!-- Новая кнопка переключения между маркерами и тепловой картой -->
-          <button id="toggleHeatmap" class="button" style="margin-left:10px;">Тепловая карта</button>
+          <button id="toggleHeatmap" class="button" style="margin-left:10px; padding: 8px 12px; font-size: 14px;">Тепловая карта</button>
         </div>
     
         <button class="geolocation-button" onclick="getCurrentLocation()" title="Моё местоположение">
@@ -613,7 +613,7 @@
         <button class="button" onclick="hideAnalyticsModal()" data-lang="cancel" style="margin:10px;">Отмена</button>
         <div style="margin-bottom:10px; text-align:center;">
           <select id="recentFilterSelect">
-            <option value="all">Все</option>
+            <option value="all" data-lang="all">Все</option>
             <option value="theft" data-lang="theft">Кража</option>
             <option value="violence" data-lang="violence">Насилие</option>
             <option value="fraud" data-lang="fraud">Мошенничество</option>
@@ -628,13 +628,20 @@
         </div>
         <div style="margin-bottom:10px; text-align:center;">
           <select id="timeFilterSelect">
-            <option value="all">Все время</option>
-            <option value="today">Сегодня</option>
-            <option value="month">Этот месяц</option>
-            <option value="year">Этот год</option>
+            <option value="all" data-lang="allTime">Все время</option>
+            <option value="today" data-lang="today">Сегодня</option>
+            <option value="month" data-lang="month">Этот месяц</option>
+            <option value="year" data-lang="year">Этот год</option>
           </select>
         </div>
-        <p id="incidentCount" style="margin-bottom:10px;">Всего: 0</p>
+        <!-- Добавлены чекбоксы для фильтрации по статусу -->
+        <div style="margin:10px; text-align:center;">
+          <input type="checkbox" id="analyticVerified" checked>
+          <label data-lang="verifiedLabel">Верифицированные</label>
+          <input type="checkbox" id="analyticNonVerified" checked style="margin-left:15px;">
+          <label data-lang="nonVerifiedLabel">Не верифицированные</label>
+        </div>
+        <p id="incidentCount" style="margin-bottom:10px;" data-lang="totalIncidents">Всего: 0</p>
         <div style="margin:10px auto; max-width:600px; height:300px;">
           <canvas id="analyticsChart"></canvas>
         </div>
@@ -657,7 +664,6 @@
 <script>
   // Мультиязычность - словари
   const translations = {
-    // Русский (базовый)
     'ru': {
       'crimeType': 'Тип преступления',
       'allTypes': 'Все типы',
@@ -712,10 +718,23 @@
       'mapLanguage': 'ru',
       'toggleToHeatmap': "Тепловая карта",
       'toggleToMarkers': "Маркер",
-      'myLocation': "Мое местоположение"
+      'myLocation': "Мое местоположение",
+      'complain': 'Пожаловаться',
+      'alreadyComplained': 'Вы уже пожаловались на эту метку',
+      'complaintAccepted': 'Ваша жалоба принята',
+      'markerRemovedDueToComplaints': 'Метка удалена из-за большого количества жалоб',
+      'all': 'Все',
+      'allTime': 'Все время',
+      'totalIncidents': 'Всего:',
+      'today': 'Сегодня',
+      'month': 'Этот месяц',
+      'year': 'Этот год',
+      'verified': 'Верифицировано',
+      'markerStatus': 'Статус меток',
+      'verifiedLabel': 'Верифицированные',
+      'nonVerifiedLabel': 'Не верифицированные'
     },
     
-    // Английский
     'en': {
       'crimeType': 'Crime Type',
       'allTypes': 'All Types',
@@ -770,19 +789,32 @@
       'mapLanguage': 'en',
       'toggleToHeatmap': "Heat Map",
       'toggleToMarkers': "Markers",
-      'myLocation': "My Location"
+      'myLocation': "My Location",
+      'complain': "Complain",
+      'alreadyComplained': 'You have already complained about this marker',
+      'complaintAccepted': 'Your complaint has been registered',
+      'markerRemovedDueToComplaints': 'Marker removed due to excessive complaints',
+      'all': 'All',
+      'allTime': 'All time',
+      'totalIncidents': 'Total:',
+      'today': 'Today',
+      'month': 'This month',
+      'year': 'This year',
+      'verified': 'Verified',
+      'markerStatus': 'Marker Status',
+      'verifiedLabel': 'Verified',
+      'nonVerifiedLabel': 'Not Verified'
     },
     
-    // Кыргызский
     'ky': {
       'crimeType': 'Кылмыш түрү',
       'allTypes': 'Бардык түрлөр',
       'theft': 'Уурулук',
       'violence': 'Зомбулук',
       'fraud': 'Алдамчылык',
-      'robbery': 'Грабеж',
-      'banditry': 'Разбой',
-      'vehicleTheft': 'Угон транспортного средства',
+      'robbery': 'Карактоо',
+      'banditry': 'Каракчылык',
+      'vehicleTheft': 'Унаа уурдоо',
       'vandalism': 'Вандализм',
       'drugTrafficking': 'Наркоторговля',
       'hooliganism': 'Хулиганство',
@@ -828,7 +860,21 @@
       'mapLanguage': 'ky',
       'toggleToHeatmap': "Жылуулук картасы",
       'toggleToMarkers': "Белгилер",
-      'myLocation': "Менин жайгашкан жерим"
+      'myLocation': "Менин жайгашкан жерим",
+      'complain': "Шикая",
+      'alreadyComplained': 'Сиз бул белгиге мурун ошол эле шикая бердиңиз',
+      'complaintAccepted': 'Сиздин шикаяңыз кабыл алынды',
+      'markerRemovedDueToComplaints': 'Белги шикаялардын көптүгү себебинен жок кылынды',
+      'all': 'Баары',
+      'allTime': 'Баары убакыт',
+      'totalIncidents': 'Жыйынтык:',
+      'today': 'Бүгүн',
+      'month': 'Бул ай',
+      'year': 'Бул жыл',
+      'verified': 'Верификацияланган',
+      'markerStatus': 'Белгинин статусу',
+      'verifiedLabel': 'Верификацияланган',
+      'nonVerifiedLabel': 'Верификацияланбаган'
     }
   };
 
@@ -935,15 +981,22 @@
                 <strong>${translations[currentLanguage]['addressPlaceholder']}:</strong> ${info.address}<br>
                 <strong>${translations[currentLanguage]['datePlaceholder']}:</strong> ${info.date}<br>
                 <strong>${translations[currentLanguage]['descriptionPlaceholder']}:</strong> ${info.description}<br>`;
-      
+      // Новая проверка верификации
+      if (info.verified) {
+        html += `<div style="color:green; font-weight:bold;">✔ ${translations[currentLanguage]['verified']}</div>`;
+      }
       if (currentUser && info.userId === currentUser.email) {
         html += `<button class="delete-btn" data-id="${id}">${translations[currentLanguage]['deleteMarker']}</button>`;
       }
-      
+      if (currentUser && currentUser.email !== info.userId && !(info.complaints && info.complaints.includes(currentUser.email))) {
+        html += `<button class="complain-btn" data-id="${id}">${translations[currentLanguage]['complain']}</button>`;
+      }
       marker.bindPopup(html);
       marker.on('popupopen', () => {
         const btn = document.querySelector(`.delete-btn[data-id="${id}"]`);
         if (btn) btn.onclick = () => deleteMarker(id);
+        const compBtn = document.querySelector(`.complain-btn[data-id="${id}"]`);
+        if (compBtn) compBtn.onclick = () => handleComplaint(id);
       });
     });
   }
@@ -961,7 +1014,7 @@
     apiKey: "AIzaSyDgKbBuRmMxVjdC-CM2W-MssfG_kQM1-qo",
     authDomain: "besafe-7bf08.firebaseapp.com",
     projectId: "besafe-7bf08",
-    storageBucket: "besafe-7bf08.firebasestorage.app",
+    storageBucket: "besafe-7bfappspot.com",
     messagingSenderId: "155959634151",
     appId: "1:155959634151:web:ecfadb36b522b95da35a42"
   };
@@ -1112,25 +1165,64 @@
       const snap = await db.collection('markers').get();
       snap.forEach(doc => {
         const d = doc.data();
-        // меняем создание метки: добавляем опцию icon
         const mk = L.marker([d.lat, d.lng], { icon: getMarkerIcon(d.crimeType) }).addTo(map);
         let html = `<strong>${translations[currentLanguage]['crimeType']}:</strong> ${getCrimeTypeInCurrentLanguage(d.crimeType)}<br>
                   <strong>${translations[currentLanguage]['addressPlaceholder']}:</strong> ${d.address}<br>
                   <strong>${translations[currentLanguage]['datePlaceholder']}:</strong> ${d.date}<br>
                   <strong>${translations[currentLanguage]['descriptionPlaceholder']}:</strong> ${d.description}<br>`;
+        // Добавляем блок верификации, если verified true
+        if (d.verified) {
+          html += `<div style="color:green; font-weight:bold;">✔ ${translations[currentLanguage]['verified']}</div>`;
+        }
         if (currentUser && d.userId === currentUser.email) {
           html += `<button class="delete-btn" data-id="${doc.id}">${translations[currentLanguage]['deleteMarker']}</button>`;
+        }
+        if (currentUser && currentUser.email !== d.userId && !(d.complaints && d.complaints.includes(currentUser.email))) {
+          html += `<button class="complain-btn" data-id="${doc.id}">${translations[currentLanguage]['complain']}</button>`;
         }
         mk.bindPopup(html);
         markers.push({ marker: mk, info: d, id: doc.id });
         mk.on('popupopen', () => {
           const btn = document.querySelector(`.delete-btn[data-id="${doc.id}"]`);
           if (btn) btn.onclick = () => deleteMarker(doc.id);
+          
+          const compBtn = document.querySelector(`.complain-btn[data-id="${doc.id}"]`);
+          if (compBtn) compBtn.onclick = () => handleComplaint(doc.id);
         });
       });
     } catch (e) { 
       alert(translations[currentLanguage]['loadError']); 
       console.error(e); 
+    }
+  }
+
+  // Новая функция для обработки жалобы на метку
+  async function handleComplaint(docId) {
+    if (!currentUser) {
+      alert(translations[currentLanguage]['loginRequired']);
+      return;
+    }
+    const markerRef = db.collection('markers').doc(docId);
+    const docSnap = await markerRef.get();
+    if (!docSnap.exists) return;
+    const data = docSnap.data();
+    let complaints = data.complaints || [];
+    if (complaints.includes(currentUser.email)) {
+      alert(translations[currentLanguage]['alreadyComplained']);
+      return;
+    }
+    complaints.push(currentUser.email);
+    await markerRef.update({ complaints: complaints });
+    if (complaints.length >= 5) {
+      await markerRef.delete();
+      const idx = markers.findIndex(m => m.id === docId);
+      if (idx > -1) {
+        map.removeLayer(markers[idx].marker);
+        markers.splice(idx, 1);
+      }
+      alert(translations[currentLanguage]['markerRemovedDueToComplaints']);
+    } else {
+      alert(translations[currentLanguage]['complaintAccepted']);
     }
   }
 
@@ -1228,8 +1320,12 @@
       let html = `<strong>${translations[currentLanguage]['crimeType']}:</strong> ${getCrimeTypeInCurrentLanguage(data.crimeType)}<br>
                 <strong>${translations[currentLanguage]['addressPlaceholder']}:</strong> ${data.address}<br>
                 <strong>${translations[currentLanguage]['datePlaceholder']}:</strong> ${data.date}<br>
-                <strong>${translations[currentLanguage]['descriptionPlaceholder']}:</strong> ${data.description}<br>
-                <button class="delete-btn" data-id="${docRef.id}">${translations[currentLanguage]['deleteMarker']}</button>`;
+                <strong>${translations[currentLanguage]['descriptionPlaceholder']}:</strong> ${data.description}<br>`;
+      // Добавляем блок верификации при наличии data.verified
+      if (data.verified) {
+          html += `<div style="color:green; font-weight:bold;">✔ ${translations[currentLanguage]['verified']}</div>`;
+      }
+      html += `<button class="delete-btn" data-id="${docRef.id}">${translations[currentLanguage]['deleteMarker']}</button>`;
       mk.bindPopup(html);
       markers.push({ marker: mk, info: data, id: docRef.id });
       mk.on('popupopen', () => {
@@ -1445,6 +1541,15 @@ function useMyLocationForMarker() {
 
   // Analytics modal
   function showAnalyticsModal() {
+    const zoomControl = document.querySelector('.leaflet-control-zoom');
+    const geoBtn = document.querySelector('.geolocation-button');
+    if (geoBtn) {
+       geoBtn.disabled = true;
+       geoBtn.style.pointerEvents = "none";
+    }
+    if (zoomControl) {
+       zoomControl.style.pointerEvents = "none";
+    }
     const sidebar = document.querySelector('.sidebar');
     const hamburger = document.querySelector('.hamburger');
     if (sidebar.classList.contains('active')) {
@@ -1457,6 +1562,15 @@ function useMyLocationForMarker() {
 
   function hideAnalyticsModal() {
     hideModal('analyticsModal');
+    const zoomControl = document.querySelector('.leaflet-control-zoom');
+    const geoBtn = document.querySelector('.geolocation-button');
+    if (geoBtn) {
+       geoBtn.disabled = false;
+       geoBtn.style.pointerEvents = "auto";
+    }
+    if (zoomControl) {
+       zoomControl.style.pointerEvents = "auto";
+    }
   }
 
   let analyticsChart; // Новая переменная для диаграммы
@@ -1464,10 +1578,12 @@ function useMyLocationForMarker() {
   async function loadAnalytics() {
     const filterType = document.getElementById('recentFilterSelect').value;
     const timeFilter = document.getElementById('timeFilterSelect').value;
+    // Получаем состояния новых чекбоксов
+    const analyticVerified = document.getElementById('analyticVerified').checked;
+    const analyticNonVerified = document.getElementById('analyticNonVerified').checked;
     const listContainer = document.getElementById('incidentList');
     listContainer.innerHTML = '';
     let count = 0;
-    // Подсчет инцидентов по типу для диаграммы
     const typeCounts = {theft: 0, violence: 0, fraud: 0, robbery: 0, banditry: 0, vehicleTheft: 0, vandalism: 0, drugTrafficking: 0, hooliganism: 0, roadAccident: 0};
     try {
       const snap = await db.collection('markers').orderBy('timestamp', 'desc').limit(50).get();
@@ -1488,6 +1604,10 @@ function useMyLocationForMarker() {
           } else if (timeFilter === 'year') {
             timeMatch = incidentDate.getFullYear() === now.getFullYear();
           }
+        }
+        // Новая фильтрация по статусу: если запись верифицирована, но чекбокс не выбран, или наоборот – пропускаем запись
+        if ((d.verified && !analyticVerified) || (!d.verified && !analyticNonVerified)) {
+          return;
         }
         if (typeMatch && timeMatch) {
           const div = document.createElement('div');
@@ -1511,10 +1631,22 @@ function useMyLocationForMarker() {
           else if(d.crimeType.toLowerCase() === 'roadaccident') typeCounts.roadAccident++;
         }
       });
-      document.getElementById('incidentCount').textContent = `Всего: ${count}`;
+      document.getElementById('incidentCount').textContent = translations[currentLanguage]['totalIncidents'] + ' ' + count;
 
       // Обновление диаграммы
       const ctx = document.getElementById('analyticsChart').getContext('2d');
+      const chartLabels = [
+        translations[currentLanguage]['theft'],
+        translations[currentLanguage]['violence'],
+        translations[currentLanguage]['fraud'],
+        translations[currentLanguage]['robbery'],
+        translations[currentLanguage]['banditry'],
+        translations[currentLanguage]['vehicleTheft'],
+        translations[currentLanguage]['vandalism'],
+        translations[currentLanguage]['drugTrafficking'],
+        translations[currentLanguage]['hooliganism'],
+        translations[currentLanguage]['roadAccident']
+      ];
       if (analyticsChart) {
         analyticsChart.data.datasets[0].data = [
           typeCounts.theft, typeCounts.violence, typeCounts.fraud,
@@ -1522,12 +1654,13 @@ function useMyLocationForMarker() {
           typeCounts.vandalism, typeCounts.drugTrafficking, typeCounts.hooliganism,
           typeCounts.roadAccident
         ];
+        analyticsChart.data.labels = chartLabels;
         analyticsChart.update();
       } else {
         analyticsChart = new Chart(ctx, {
           type: 'bar',
           data: {
-            labels: ['Кража', 'Насилие', 'Мошенничество', 'Грабеж', 'Разбой', 'Угон транспортного средства', 'Вандализм', 'Наркоторговля', 'Хулиганство', 'ДТП'],
+            labels: chartLabels,
             datasets: [{
               label: 'Количество инцидентов',
               data: [
@@ -1570,7 +1703,7 @@ function useMyLocationForMarker() {
               y: {
                 beginAtZero: true,
                 ticks: {
-                  stepSize: 1, // only integer steps
+                  stepSize: 1,
                   callback: function(value) {
                     return Math.floor(value) === value ? value : null;
                   }
@@ -1587,6 +1720,9 @@ function useMyLocationForMarker() {
 
   document.getElementById('recentFilterSelect').addEventListener('change', loadAnalytics);
   document.getElementById('timeFilterSelect').addEventListener('change', loadAnalytics);
+  // Новые обработчики для чекбоксов аналитики
+  document.getElementById('analyticVerified').addEventListener('change', loadAnalytics);
+  document.getElementById('analyticNonVerified').addEventListener('change', loadAnalytics);
 
   // Функция переключения между режимами: маркеры ⇔ тепловая карта
 function toggleHeatmap() {
@@ -1623,6 +1759,23 @@ function toggleHeatmap() {
 }
   // Добавляем обработчик клика для кнопки переключения
   document.getElementById('toggleHeatmap').addEventListener('click', toggleHeatmap);
+
+  // Фильтрация меток по статусу
+  function filterMarkersByStatus() {
+    markers.forEach(({ marker, info }) => {
+      const isVerified = info.verified;
+      const show = (isVerified && document.getElementById('verified').checked) ||
+                   (!isVerified && document.getElementById('nonVerified').checked);
+      if (show) {
+        marker.addTo(map);
+      } else {
+        map.removeLayer(marker);
+      }
+    });
+  }
+
+  document.getElementById('verified').addEventListener('change', filterMarkersByStatus);
+  document.getElementById('nonVerified').addEventListener('change', filterMarkersByStatus);
 </script>
 </body>
 </html>
